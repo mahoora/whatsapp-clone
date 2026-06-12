@@ -23,7 +23,11 @@ jobs:
       - run: flutter analyze > analyze_output.txt 2>&1 || true; cat analyze_output.txt
       - run: flutter build web --release --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt; echo "---LAST 30 LINES---"; tail -30 build_log.txt
       - name: Check build output
-        run: pwd; ls -la build/ 2>&1 || echo "build/ not found"; find . -name "index.html" -type f 2>/dev/null | head -10
+        run: |
+          ls -la build/web/ 2>&1
+          ls -la build/web/index.html 2>&1
+          find build -name "index.html" -type f 2>/dev/null
+          find . -name "*.html" -type f 2>/dev/null | head -20
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
