@@ -21,7 +21,7 @@ jobs:
       - run: flutter pub get
       - run: flutter config --enable-web
       - run: flutter analyze || true
-      - run: flutter build web --release --base-href /whatsapp-clone/
+      - run: flutter build web --release
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
