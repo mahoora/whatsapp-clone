@@ -21,7 +21,7 @@ jobs:
       - run: flutter pub get
       - run: flutter config --enable-web
       - run: flutter analyze > analyze_output.txt 2>&1 || true; cat analyze_output.txt
-      - run: set -o pipefail; flutter build web --release --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt; tail -30 build_log.txt
+      - run: set -o pipefail; flutter build web --release --verbose --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt; tail -80 build_log.txt
       - name: Check build output
         run: |
           echo "=== build/web/ ===" && ls -la build/web/ 2>&1 || echo "NOT FOUND"
