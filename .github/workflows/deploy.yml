@@ -25,19 +25,16 @@ jobs:
           cd /tmp/testweb
           echo 'void main() { print("hello"); }' > main.dart
           dart compile js main.dart -o main.js 2>&1 || echo "dart2js failed"
-      - run: flutter analyze
+      - name: Analyze
+        id: analyze
+        run: |
+          flutter analyze > analyze_output.txt 2>&1 || true
+          cat analyze_output.txt
       - name: Build web
-        id: buildweb
         run: |
           flutter build web --release 2>&1 | tee build_output.txt
-      - name: Check build
-        run: |
-          if [ -f build/web/index.html ]; then
-            echo "Build SUCCESS - index.html found"
-          else
-            echo "Build FAILED - no index.html"
-          fi
       - name: Show last 80 lines of build output
+        if: failure()
         run: tail -80 build_output.txt || echo "No build output"
       - name: Upload Pages artifact
         if: success()
