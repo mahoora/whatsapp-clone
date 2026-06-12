@@ -19,39 +19,35 @@ jobs:
           flutter-version: 3.44.2
           channel: stable
       - run: flutter pub get
-      - run: flutter --version
-      - run: flutter doctor -v
-      - run: flutter config --enable-web
-      - name: Capture analyze errors
-        run: flutter analyze > analyze_output.txt 2>&1 || true
-      - name: Upload analyze output
-        uses: actions/upload-artifact@v4
-        with:
-          name: analyze-output
-          path: analyze_output.txt
-          if-no-files-found: warn
-      - name: Test minimal web build
+      - name: Create simple test
+        run: | 
+          mkdir -p /tmp/testweb
+          cd /tmp/testweb
+          echo 'void main() { print("hello"); }' > main.dart
+          dart compile js main.dart -o main.js 2>&1 || echo "dart2js failed"
+      - run: flutter analyze
+      - name: Build web
+        id: buildweb
         run: |
-          cd /tmp
-          flutter create --project-name=testweb --platforms=web testweb 2>&1 | tail -5
-          cd testweb
-          flutter build web --release 2>&1 | tail -20
-        continue-on-error: true
-      - name: Build our project (capture errors)
-        run: flutter build web --release > build_errors.txt 2>&1 || true
-      - name: Upload build errors
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-errors
-          path: build_errors.txt
-          if-no-files-found: warn
+          flutter build web --release 2>&1 | tee build_output.txt
+      - name: Check build
+        run: |
+          if [ -f build/web/index.html ]; then
+            echo "Build SUCCESS - index.html found"
+          else
+            echo "Build FAILED - no index.html"
+          fi
+      - name: Show last 80 lines of build output
+        run: tail -80 build_output.txt || echo "No build output"
       - name: Upload Pages artifact
+        if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
   deploy:
     needs: build
+    if: success()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
