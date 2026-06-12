@@ -26,12 +26,14 @@ jobs:
         continue-on-error: true
       - name: Search errors in build log
         run: |
-          echo "=== GREP ERROR ===" && grep -in "error" build_log.txt | head -30
+          echo "=== GREP ERROR ===" && grep -in "error\|Error\|SEVERE" build_log.txt | head -30
           echo "=== LAST 50 LINES ===" && tail -50 build_log.txt
           echo "=== build/web/ ===" && ls -la build/web/ 2>&1 || echo "build/web NOT FOUND"
-          echo "=== Any index.html ===" && find . -name "index.html" -type f 2>/dev/null
+          echo "=== index.html size ===" && wc -c build/web/index.html 2>&1 || echo "index.html NOT FOUND"
+          echo "=== All index.html ===" && find . -name "index.html" -type f 2>/dev/null
+          echo "=== Files in build/web ===" && find build/web -type f 2>/dev/null | head -20
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: build/web
 
