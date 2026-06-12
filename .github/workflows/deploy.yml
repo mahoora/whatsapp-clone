@@ -21,13 +21,13 @@ jobs:
       - run: flutter pub get
       - run: flutter config --enable-web
       - run: flutter analyze > analyze_output.txt 2>&1 || true; cat analyze_output.txt
-      - run: flutter build web --release --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt; echo "---LAST 30 LINES---"; tail -30 build_log.txt
+      - run: set -o pipefail; flutter build web --release --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt; tail -30 build_log.txt
       - name: Check build output
         run: |
-          ls -la build/web/ 2>&1
-          ls -la build/web/index.html 2>&1
-          find build -name "index.html" -type f 2>/dev/null
-          find . -name "*.html" -type f 2>/dev/null | head -20
+          echo "=== build/web/ ===" && ls -la build/web/ 2>&1 || echo "NOT FOUND"
+          echo "=== build/ ===" && ls -la build/ 2>&1 || echo "build/ NOT FOUND"
+          echo "=== Any index.html ===" && find . -name "index.html" -type f 2>/dev/null
+          echo "=== Any .html ===" && find . -name "*.html" -type f 2>/dev/null | head -20
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
