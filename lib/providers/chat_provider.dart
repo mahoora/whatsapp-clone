@@ -86,6 +86,13 @@ class ChatProvider extends ChangeNotifier {
     return doc.id;
   }
 
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    await FirebaseService.firestore
+        .collection('chats').doc(chatId)
+        .collection('messages').doc(messageId)
+        .delete();
+  }
+
   Future<List<AppUser>> searchUsers(String query) async {
     final snapshot = await FirebaseService.firestore
         .collection('users')

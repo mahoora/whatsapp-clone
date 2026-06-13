@@ -215,6 +215,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     isMe: msg.senderId == uid,
                     time: msg.timestamp,
                     isRead: msg.isRead,
+                    onCopy: () {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم النسخ'), duration: Duration(seconds: 1)),
+                        );
+                      }
+                    },
+                    onDelete: msg.senderId == uid
+                        ? () => context.read<ChatProvider>().deleteMessage(widget.chatId, msg.id)
+                        : null,
                   ),
                 ],
               );

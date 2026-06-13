@@ -7,6 +7,8 @@ class MessageBubble extends StatelessWidget {
   final bool isMe;
   final DateTime time;
   final bool isRead;
+  final VoidCallback? onDelete;
+  final VoidCallback? onCopy;
 
   const MessageBubble({
     super.key,
@@ -14,6 +16,8 @@ class MessageBubble extends StatelessWidget {
     required this.isMe,
     required this.time,
     this.isRead = false,
+    this.onDelete,
+    this.onCopy,
   });
 
   @override
@@ -24,7 +28,35 @@ class MessageBubble extends StatelessWidget {
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           Flexible(
-            child: Container(
+            child: GestureDetector(
+              onLongPress: () {
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: const Color(0xFF1F2C33),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (ctx) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.copy, color: Color(0xFFE9EDEF)),
+                          title: const Text('نسخ', style: TextStyle(color: Color(0xFFE9EDEF))),
+                          onTap: () { Navigator.pop(ctx); onCopy?.call(); },
+                        ),
+                        if (isMe)
+                          ListTile(
+                            leading: const Icon(Icons.delete_outline, color: Color(0xFFE9EDEF)),
+                            title: const Text('حذف', style: TextStyle(color: Color(0xFFE9EDEF))),
+                            onTap: () { Navigator.pop(ctx); onDelete?.call(); },
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: Container(
               constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
