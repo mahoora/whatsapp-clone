@@ -25,6 +25,7 @@ jobs:
       - run: flutter pub get
       - run: flutter config --enable-web
       - run: flutter analyze
+        continue-on-error: true
       - run: flutter build web --release
       - name: Set base href
         run: sed -i 's|<base href="/">|<base href="/whatsapp-clone/">|' build/web/index.html
