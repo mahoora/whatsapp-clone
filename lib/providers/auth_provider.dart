@@ -107,6 +107,7 @@ class AuthProvider extends ChangeNotifier {
       case 'weak-password': return 'كلمة المرور ضعيفة جداً (6 أحرف على الأقل)';
       case 'invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة';
       case 'too-many-requests': return 'تم حظر الطلب مؤقتاً، حاول لاحقاً';
+      case 'invalid-credential': return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
       default: return 'خطأ: $code';
     }
   }
