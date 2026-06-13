@@ -69,16 +69,24 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userCred = await _confirmationResult!.confirm(smsCode);
+      await _confirmationResult!.confirm(smsCode);
       _confirmationResult = null;
-      if (_firebaseUser == null && userCred.user != null) {
-        _firebaseUser = userCred.user;
-        final doc = await FirebaseService.users.doc(userCred.user!.uid).get();
+      for (int i = 0; i < 20; i++) {
+        if (_firebaseUser != null) break;
+        final user = FirebaseService.auth.currentUser;
+        if (user != null) {
+          _firebaseUser = user;
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+      if (_firebaseUser != null) {
+        final doc = await FirebaseService.users.doc(_firebaseUser!.uid).get();
         if (doc.exists) {
           _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
           _isNewUser = false;
         } else {
-          _appUser = AppUser(uid: userCred.user!.uid, phoneNumber: userCred.user!.phoneNumber ?? '', displayName: '');
+          _appUser = AppUser(uid: _firebaseUser!.uid, phoneNumber: _firebaseUser!.phoneNumber ?? '', displayName: '');
           _isNewUser = true;
         }
       }
