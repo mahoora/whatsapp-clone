@@ -2,6 +2,7 @@ class AppUser {
   final String uid;
   final String email;
   final String displayName;
+  final String? phoneNumber;
   final String? photoUrl;
   final String? status;
   final bool isOnline;
@@ -11,6 +12,7 @@ class AppUser {
     required this.uid,
     required this.email,
     required this.displayName,
+    this.phoneNumber,
     this.photoUrl,
     this.status,
     this.isOnline = false,
@@ -22,6 +24,7 @@ class AppUser {
       uid: map['uid'] ?? '',
       email: map['email'] ?? '',
       displayName: map['displayName'] ?? '',
+      phoneNumber: map['phoneNumber'],
       photoUrl: map['photoUrl'],
       status: map['status'] ?? 'مرحباً، أنا على واتساب',
       isOnline: map['isOnline'] ?? false,
@@ -34,6 +37,7 @@ class AppUser {
       'uid': uid,
       'email': email,
       'displayName': displayName,
+      'phoneNumber': phoneNumber,
       'photoUrl': photoUrl,
       'status': status ?? 'مرحباً، أنا على واتساب',
       'isOnline': isOnline,
