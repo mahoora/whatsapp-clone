@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -262,12 +263,12 @@ class _ChatScreenState extends State<ChatScreen> {
               controller: _msgCtrl,
               focusNode: _focusNode,
               textInputAction: TextInputAction.send,
-              textDirection: TextDirection.rtl,
+              textDirection: ui.TextDirection.rtl,
               onSubmitted: (_) => _sendMessage(),
               style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 15),
               decoration: InputDecoration(
                 hintText: 'اكتب رسالة...',
-                hintTextDirection: TextDirection.rtl,
+                hintTextDirection: ui.TextDirection.rtl,
                 hintStyle: const TextStyle(color: Color(0xFF8696A0)),
                 filled: true,
                 fillColor: const Color(0xFF2A3942),

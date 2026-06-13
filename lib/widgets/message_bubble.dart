@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -41,7 +42,7 @@ class MessageBubble extends StatelessWidget {
                   Text(
                     text,
                     style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 15),
-                    textDirection: TextDirection.rtl,
+                    textDirection: ui.TextDirection.rtl,
                   ),
                   const SizedBox(height: 2),
                   Row(

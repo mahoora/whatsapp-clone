@@ -50,7 +50,7 @@ class WhatsAppCloneApp extends StatelessWidget {
         ),
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
-            if (auth.isLoading && auth.user != null) {
+            if (auth.isLoading && auth.isAuthenticated) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator(color: Color(0xFF00A884))),
               );
