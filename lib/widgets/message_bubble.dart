@@ -43,13 +43,19 @@ class MessageBubble extends StatelessWidget {
                         ListTile(
                           leading: const Icon(Icons.copy, color: Color(0xFFE9EDEF)),
                           title: const Text('نسخ', style: TextStyle(color: Color(0xFFE9EDEF))),
-                          onTap: () { Navigator.pop(ctx); onCopy?.call(); },
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            onCopy?.call();
+                          },
                         ),
                         if (isMe)
                           ListTile(
                             leading: const Icon(Icons.delete_outline, color: Color(0xFFE9EDEF)),
                             title: const Text('حذف', style: TextStyle(color: Color(0xFFE9EDEF))),
-                            onTap: () { Navigator.pop(ctx); onDelete?.call(); },
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              onDelete?.call();
+                            },
                           ),
                       ],
                     ),
@@ -57,49 +63,50 @@ class MessageBubble extends StatelessWidget {
                 );
               },
               child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isMe ? const Color(0xFF005C4B) : const Color(0xFF202C33),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(8),
-                  topRight: const Radius.circular(8),
-                  bottomLeft: isMe ? const Radius.circular(8) : const Radius.circular(0),
-                  bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(8),
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isMe ? const Color(0xFF005C4B) : const Color(0xFF202C33),
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(8),
+                    topRight: const Radius.circular(8),
+                    bottomLeft: isMe ? const Radius.circular(8) : const Radius.circular(0),
+                    bottomRight: isMe ? const Radius.circular(0) : const Radius.circular(8),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    text,
-                    style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 15),
-                    textDirection: ui.TextDirection.rtl,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('HH:mm').format(time),
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF8696A0)),
-                      ),
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          isRead ? Icons.done_all : Icons.done,
-                          size: 16,
-                          color: isRead ? const Color(0xFF53BDEB) : const Color(0xFF8696A0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      text,
+                      style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 15),
+                      textDirection: ui.TextDirection.rtl,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('HH:mm').format(time),
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF8696A0)),
                         ),
+                        if (isMe) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            isRead ? Icons.done_all : Icons.done,
+                            size: 16,
+                            color: isRead ? const Color(0xFF53BDEB) : const Color(0xFF8696A0),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
