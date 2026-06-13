@@ -17,6 +17,24 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  String _countryCode = '+966';
+
+  final _countries = [
+    'SA', 'AE', 'EG', 'KW', 'QA', 'BH', 'OM', 'IQ', 'YE', 'SY', 'JO', 'LB', 'PS',
+    'DZ', 'MA', 'TN', 'LY', 'SD',
+  ];
+  final _codes = {
+    'SA': '+966', 'AE': '+971', 'EG': '+20', 'KW': '+965', 'QA': '+974',
+    'BH': '+973', 'OM': '+968', 'IQ': '+964', 'YE': '+967', 'SY': '+963',
+    'JO': '+962', 'LB': '+961', 'PS': '+970', 'DZ': '+213', 'MA': '+212',
+    'TN': '+216', 'LY': '+218', 'SD': '+249',
+  };
+  final _names = {
+    'SA': 'السعودية', 'AE': 'الإمارات', 'EG': 'مصر', 'KW': 'الكويت', 'QA': 'قطر',
+    'BH': 'البحرين', 'OM': 'عمان', 'IQ': 'العراق', 'YE': 'اليمن', 'SY': 'سوريا',
+    'JO': 'الأردن', 'LB': 'لبنان', 'PS': 'فلسطين', 'DZ': 'الجزائر', 'MA': 'المغرب',
+    'TN': 'تونس', 'LY': 'ليبيا', 'SD': 'السودان',
+  };
 
   @override
   void dispose() {
@@ -57,12 +75,25 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF2A3942),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text('+966', style: TextStyle(color: Color(0xFFE9EDEF))),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _countryCode,
+                          dropdownColor: const Color(0xFF2A3942),
+                          style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 14),
+                          items: _countries.map((c) {
+                            return DropdownMenuItem(
+                              value: _codes[c],
+                              child: Text('${_codes[c]} (${_names[c]})'),
+                            );
+                          }).toList(),
+                          onChanged: (v) => setState(() => _countryCode = v!),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -78,7 +109,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                           fillColor: const Color(0xFF2A3942),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                         ),
-                        validator: (v) => v == null || v.trim().length < 9 ? 'رقم غير صحيح' : null,
+                        validator: (v) => v == null || v.trim().length < 6 ? 'رقم غير صحيح' : null,
                       ),
                     ),
                   ],
@@ -105,11 +136,12 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   Future<void> _saveContact(BuildContext dialogCtx) async {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
-    final phone = '+966${_phoneCtrl.text.trim()}';
+    final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
+    final docId = phone.replaceAll('+', '');
 
     try {
-      await FirebaseService.users.doc(phone).set({
-        'uid': phone,
+      await FirebaseService.users.doc(docId).set({
+        'uid': docId,
         'phoneNumber': phone,
         'displayName': name,
         'email': '',
@@ -123,7 +155,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('فشل حفظ جهة الاتصال')),
+          SnackBar(content: Text('فشل الحفظ: $e')),
         );
       }
     }
