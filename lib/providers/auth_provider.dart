@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
@@ -70,8 +69,19 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _confirmationResult!.confirm(smsCode);
+      final userCred = await _confirmationResult!.confirm(smsCode);
       _confirmationResult = null;
+      if (_firebaseUser == null && userCred.user != null) {
+        _firebaseUser = userCred.user;
+        final doc = await FirebaseService.users.doc(userCred.user!.uid).get();
+        if (doc.exists) {
+          _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
+          _isNewUser = false;
+        } else {
+          _appUser = AppUser(uid: userCred.user!.uid, phoneNumber: userCred.user!.phoneNumber ?? '', displayName: '');
+          _isNewUser = true;
+        }
+      }
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
