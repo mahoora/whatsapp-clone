@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/firebase_service.dart';
 import '../models/user_model.dart';
 
@@ -8,8 +10,6 @@ class AuthProvider extends ChangeNotifier {
   AppUser? _appUser;
   bool _isLoading = false;
   String? _error;
-  ConfirmationResult? _confirmationResult;
-  String? _verificationId;
 
   User? get firebaseUser => _firebaseUser;
   AppUser? get appUser => _appUser;
@@ -17,96 +17,52 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _firebaseUser != null;
   String get userId => _firebaseUser?.uid ?? '';
-  bool get otpSent => _confirmationResult != null;
-  bool _isNewUser = false;
-  bool get isNewUser => _isNewUser;
 
   AuthProvider() {
     FirebaseService.auth.authStateChanges().listen((User? user) async {
-      try {
-        if (user != null) {
-          _firebaseUser = user;
-          try {
-            final uid = user.uid;
-            final doc = await FirebaseService.users.doc(uid).get();
-            if (doc.exists) {
-              _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
-              _isNewUser = false;
-            } else {
-              _appUser = AppUser(uid: uid, phoneNumber: user.phoneNumber ?? '', displayName: '');
-              _isNewUser = true;
-            }
-          } catch (_) {
-            _appUser ??= AppUser(uid: user.uid, phoneNumber: user.phoneNumber ?? '', displayName: '');
-            _isNewUser = true;
-          }
-        } else {
-          _firebaseUser = null;
-          _appUser = null;
-          _confirmationResult = null;
-          _verificationId = null;
-          _isNewUser = false;
-        }
-      } catch (_) {}
+      _firebaseUser = user;
+      if (user != null) {
+        await _loadUserProfile(user.uid);
+      } else {
+        _appUser = null;
+      }
       notifyListeners();
     });
   }
 
-  Future<void> sendOtp(String phoneNumber) async {
-    if (phoneNumber.isEmpty) return;
+  Future<void> _loadUserProfile(String uid) async {
+    final doc = await FirebaseService.users.doc(uid).get();
+    if (doc.exists) {
+      _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
+    }
+  }
+
+  Future<void> login(String email, String password) async {
     _isLoading = true;
     _error = null;
-    _confirmationResult = null;
-    _verificationId = null;
     notifyListeners();
-
     try {
-      final result = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
-      _confirmationResult = result;
-      _verificationId = result.verificationId;
+      await FirebaseService.signIn(email, password);
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
-      _error = 'فشل إرسال رمز التحقق';
+      _error = 'حدث خطأ غير متوقع';
     }
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> verifyOtp(String smsCode) async {
-    if (_verificationId == null || smsCode.isEmpty) return;
+  Future<void> register(String email, String password, String name) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: smsCode,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      _confirmationResult = null;
-      _verificationId = null;
-    } on FirebaseAuthException catch (e) {
-      _error = _getErrorMessage(e.code);
-    } catch (e) {
-      _error = 'رمز التحقق غير صحيح';
-    }
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> createProfile(String displayName) async {
-    if (_firebaseUser == null) return;
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final uid = _firebaseUser!.uid;
+      final cred = await FirebaseService.signUp(email, password);
+      final uid = cred.user!.uid;
       final userData = {
         'uid': uid,
-        'phoneNumber': _firebaseUser!.phoneNumber ?? '',
-        'displayName': displayName,
+        'email': email,
+        'displayName': name,
         'photoUrl': null,
         'status': 'مرحباً، أنا على واتساب',
         'isOnline': true,
@@ -114,17 +70,11 @@ class AuthProvider extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       };
       await FirebaseService.users.doc(uid).set(userData);
-      _isNewUser = false;
-      _appUser = AppUser(
-        uid: uid,
-        phoneNumber: _firebaseUser!.phoneNumber ?? '',
-        displayName: displayName,
-        status: 'مرحباً، أنا على واتساب',
-        isOnline: true,
-        lastSeen: DateTime.now(),
-      );
+      _appUser = AppUser.fromMap({...userData, 'lastSeen': DateTime.now(), 'createdAt': DateTime.now()});
+    } on FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
     } catch (e) {
-      _error = 'فشل إنشاء الحساب';
+      _error = 'حدث خطأ غير متوقع';
     }
     _isLoading = false;
     notifyListeners();
@@ -142,26 +92,17 @@ class AuthProvider extends ChangeNotifier {
     await setOnlineStatus(false);
     await FirebaseService.signOut();
     _appUser = null;
-    _confirmationResult = null;
-    _verificationId = null;
-    _isNewUser = false;
-    notifyListeners();
-  }
-
-  void clearError() {
-    _error = null;
     notifyListeners();
   }
 
   String _getErrorMessage(String code) {
     switch (code) {
-      case 'invalid-phone-number': return 'رقم الهاتف غير صحيح';
+      case 'user-not-found': return 'البريد الإلكتروني غير مسجل';
+      case 'wrong-password': return 'كلمة المرور غير صحيحة';
+      case 'email-already-in-use': return 'البريد الإلكتروني مستخدم بالفعل';
+      case 'weak-password': return 'كلمة المرور ضعيفة جداً (6 أحرف على الأقل)';
+      case 'invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة';
       case 'too-many-requests': return 'تم حظر الطلب مؤقتاً، حاول لاحقاً';
-      case 'invalid-verification-code': return 'رمز التحقق غير صحيح';
-      case 'session-expired': return 'انتهت صلاحية الجلسة، أعد المحاولة';
-      case 'captcha-check-failed': return 'فشل التحقق الأمني، حاول مرة أخرى';
-      case 'web-context-already-presented': return '';
-      case 'operation-not-allowed': return 'مصادقة الهاتف غير مفعلة، تأكد من Firebase Console';
       default: return 'خطأ: $code';
     }
   }
