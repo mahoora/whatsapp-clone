@@ -137,17 +137,17 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
     final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
+    final auth = context.read<AuthProvider>();
 
     try {
-      await FirebaseService.firestore.collection('users').add({
-        'uid': phone.replaceAll('+', ''),
+      final uid = auth.userId;
+      if (uid.isEmpty) throw Exception('غير مصرح');
+      await FirebaseService.firestore
+          .collection('users').doc(uid)
+          .collection('contacts').doc(phone.replaceAll('+', '')).set({
         'phoneNumber': phone,
         'displayName': name,
-        'email': '',
-        'photoUrl': null,
-        'status': 'مرحباً، أنا على واتساب',
-        'isOnline': false,
-        'lastSeen': null,
+        'uid': phone.replaceAll('+', ''),
         'createdAt': FieldValue.serverTimestamp(),
       });
       if (dialogCtx.mounted) Navigator.pop(dialogCtx);

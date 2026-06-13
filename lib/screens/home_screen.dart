@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -122,6 +123,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           IconButton(icon: const Icon(Icons.camera_alt, color: Color(0xFFE9EDEF), size: 22), onPressed: () {
             final input = html.FileUploadInputElement()..accept = 'image/*';
             input.click();
+            input.onChange.listen((e) async {
+              final files = input.files;
+              if (files!.isEmpty) return;
+              final reader = html.FileReader();
+              reader.readAsDataUrl(files[0]);
+              reader.onLoadEnd.listen((_) async {
+                final b64 = reader.result as String;
+                final bytes = base64Decode(b64.split(',').last);
+                final ts = DateTime.now().millisecondsSinceEpoch;
+                try {
+                  final ref = FirebaseService.storage.ref().child('status/$ts.jpg');
+                  await ref.putData(bytes);
+                  final url = await ref.getDownloadURL();
+                  final uid = context.read<AuthProvider>().userId;
+                  await FirebaseService.firestore.collection('status').add({
+                    'uid': uid,
+                    'imageUrl': url,
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+                } catch (_) {}
+              });
+            });
           }),
           IconButton(icon: const Icon(Icons.search, color: Color(0xFFE9EDEF), size: 22), onPressed: () {}),
           PopupMenuButton<String>(
@@ -180,6 +204,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   onPressed: () {
                     final input = html.FileUploadInputElement()..accept = 'image/*';
                     input.click();
+                    input.onChange.listen((e) async {
+                      final files = input.files;
+                      if (files!.isEmpty) return;
+                      final reader = html.FileReader();
+                      reader.readAsDataUrl(files[0]);
+                      reader.onLoadEnd.listen((_) async {
+                        final b64 = reader.result as String;
+                        final bytes = base64Decode(b64.split(',').last);
+                        final ts = DateTime.now().millisecondsSinceEpoch;
+                        try {
+                          final ref = FirebaseService.storage.ref().child('status/$ts.jpg');
+                          await ref.putData(bytes);
+                          final url = await ref.getDownloadURL();
+                          final uid = context.read<AuthProvider>().userId;
+                          await FirebaseService.firestore.collection('status').add({
+                            'uid': uid,
+                            'imageUrl': url,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+                        } catch (_) {}
+                      });
+                    });
                   },
                   child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
                 )

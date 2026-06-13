@@ -51,11 +51,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
 
-    final data = <String, dynamic>{'displayName': name};
-    if (_photoBase64 != null) data['photoUrl'] = _photoBase64;
-
-    await FirebaseService.users.doc(uid).update(data);
-    if (mounted) Navigator.pop(context);
+    try {
+      final data = <String, dynamic>{'displayName': name};
+      if (_photoBase64 != null) {
+        // Upload to Firebase Storage
+        final bytes = base64Decode(_photoBase64!.split(',').last);
+        final url = await FirebaseService.uploadImage('profiles/$uid.jpg', bytes);
+        data['photoUrl'] = url;
+      }
+      await FirebaseService.users.doc(uid).update(data);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الحفظ: $e')),
+        );
+      }
+    }
   }
 
   @override
