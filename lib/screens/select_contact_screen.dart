@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../services/firebase_service.dart';
 import '../models/user_model.dart';
+import 'video_call_screen.dart';
 
 class SelectContactScreen extends StatefulWidget {
   const SelectContactScreen({super.key});
@@ -197,6 +198,77 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     }
   }
 
+  void _showContactOptions(_ContactItem item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1F2C33),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(item.name, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(item.subtitle, style: const TextStyle(color: Color(0xFF8696A0), fontSize: 14)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _optionChip(Icons.message, 'رسالة', () {
+                  Navigator.pop(ctx);
+                  if (item.user != null) {
+                    _startChat(item.user!);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('هذا الشخص غير مسجل على واتساب بعد')),
+                    );
+                  }
+                }),
+                _optionChip(Icons.videocam, 'اتصال فيديو', () {
+                  Navigator.pop(ctx);
+                  _navigateToCall(item, video: true);
+                }),
+                _optionChip(Icons.phone, 'اتصال صوتي', () {
+                  Navigator.pop(ctx);
+                  _navigateToCall(item, video: false);
+                }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _optionChip(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A3942),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: const Color(0xFF00A884)),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToCall(_ContactItem item, {required bool video}) {
+    final name = item.user?.displayName ?? item.name;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => VideoCallScreen(name: name, video: video)),
+    );
+  }
+
   Future<void> _startChat(AppUser user) async {
     final auth = context.read<AuthProvider>();
     final chatProv = context.read<ChatProvider>();
@@ -303,15 +375,20 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                     final items = <_ContactItem>[];
                     for (final entry in savedContacts.entries) {
                       final c = entry.value as Map<String, dynamic>;
+                      final phone = c['phoneNumber'] as String? ?? '';
+                      final matchedUser = users.cast<AppUser?>().firstWhere(
+                        (u) => u!.phoneNumber == phone || u.email == phone,
+                        orElse: () => null,
+                      );
                       items.add(_ContactItem(
                         name: c['displayName'] as String? ?? 'جهة اتصال',
-                        subtitle: c['phoneNumber'] as String? ?? '',
+                        subtitle: phone,
                         isSaved: true,
-                        data: c,
+                        user: matchedUser,
                       ));
                     }
                     for (final u in users) {
-                      // Avoid duplicates (match by uid)
+                      // Avoid duplicates (match by phone)
                       if (!items.any((i) => i.subtitle == u.phoneNumber || i.subtitle == u.email)) {
                         items.add(_ContactItem(
                           name: u.displayName,
@@ -341,9 +418,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                           ),
                           title: Text(item.name, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 16)),
                           subtitle: Text(item.subtitle, style: const TextStyle(color: Color(0xFF8696A0), fontSize: 13)),
-                          onTap: () {
-                            if (item.user != null) _startChat(item.user!);
-                          },
+                          onTap: () => _showContactOptions(item),
                         );
                       },
                     );
@@ -362,7 +437,6 @@ class _ContactItem {
   final String name;
   final String subtitle;
   final bool isSaved;
-  final Map<String, dynamic>? data;
   final AppUser? user;
-  _ContactItem({required this.name, required this.subtitle, required this.isSaved, this.data, this.user});
+  _ContactItem({required this.name, required this.subtitle, required this.isSaved, this.user});
 }

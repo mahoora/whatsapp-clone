@@ -119,8 +119,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return;
       }
       final reader = html.FileReader();
-      reader.onLoadEnd.listen((_) async {
-        final b64 = reader.result as String;
+      reader.onError.listen((e) {
+        html.window.console.error('FileReader error: $e');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خطأ في قراءة الملف')));
+      });
+      reader.onLoad.listen((_) async {
+        final b64 = reader.result as String?;
+        if (b64 == null) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الملف فارغ')));
+          return;
+        }
+        if (b64.length > 900000) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الصورة كبيرة جداً، اختر صورة أصغر')));
+          return;
+        }
         final uid = context.read<AuthProvider>().userId;
         try {
           html.window.console.log('Uploading status for uid=$uid');
@@ -141,9 +153,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             );
           }
         }
-      });
-      reader.onError.listen((e) {
-        html.window.console.error('FileReader error: $e');
       });
       reader.readAsDataUrl(files[0]);
     });
