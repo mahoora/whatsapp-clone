@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../services/firebase_service.dart';
 import '../models/user_model.dart';
@@ -145,12 +146,14 @@ class _NewChatDialogState extends State<NewChatDialog> {
   }
 
   void _startChat(AppUser otherUser) async {
+    final auth = context.read<AuthProvider>();
     final chatProv = context.read<ChatProvider>();
-    final chatId = await chatProv.createChat(
-      [otherUser.uid],
-      otherUser.displayName,
-      otherUser.displayName[0].toUpperCase(),
-    );
+    final participants = [auth.userId, otherUser.uid]..sort();
+    final chatId = participants.join('_');
+    final doc = await FirebaseService.firestore.collection('chats').doc(chatId).get();
+    if (!doc.exists) {
+      await chatProv.createChat(chatId, participants, otherUser.displayName, otherUser.displayName[0].toUpperCase());
+    }
     if (context.mounted) {
       Navigator.pop(context);
       chatProv.selectChat(chatId, otherUser.displayName, otherUser.displayName[0].toUpperCase());

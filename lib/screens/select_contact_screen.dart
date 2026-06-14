@@ -278,6 +278,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       final doc = await FirebaseService.firestore.collection('chats').doc(chatId).get();
       if (!doc.exists) {
         await chatProv.createChat(
+          chatId,
           participants,
           otherName,
           otherName[0].toUpperCase(),

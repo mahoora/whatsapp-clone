@@ -36,7 +36,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     participants.sort();
 
     try {
-      final chatId = await chatProv.createChat(participants, name, name[0].toUpperCase());
+      final participants = [auth.userId, ..._selected]..sort();
+      final chatId = participants.join('_');
+      await chatProv.createChat(chatId, participants, name, name[0].toUpperCase());
       chatProv.selectChat(chatId, name, name[0].toUpperCase());
       if (mounted) Navigator.pop(context);
     } catch (e) {

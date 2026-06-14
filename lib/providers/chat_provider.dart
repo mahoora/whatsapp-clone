@@ -72,8 +72,8 @@ class ChatProvider extends ChangeNotifier {
     await batch.commit();
   }
 
-  Future<String> createChat(List<String> participants, String name, String avatar) async {
-    final doc = await FirebaseService.firestore.collection('chats').add({
+  Future<void> createChat(String chatId, List<String> participants, String name, String avatar) async {
+    await FirebaseService.firestore.collection('chats').doc(chatId).set({
       'name': name,
       'participants': participants,
       'avatar': avatar,
@@ -83,7 +83,6 @@ class ChatProvider extends ChangeNotifier {
       'unread': 0,
       'createdAt': FieldValue.serverTimestamp(),
     });
-    return doc.id;
   }
 
   Future<void> deleteMessage(String chatId, String messageId) async {

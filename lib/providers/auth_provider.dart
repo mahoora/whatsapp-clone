@@ -1,46 +1,55 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../services/firebase_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
-  User? _firebaseUser;
+  fb_auth.User? _firebaseUser;
   AppUser? _appUser;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _error;
+  String? _verificationId;
 
-  User? get firebaseUser => _firebaseUser;
+  fb_auth.User? get firebaseUser => _firebaseUser;
   AppUser? get appUser => _appUser;
+  bool get isAuthenticated => _firebaseUser != null;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isAuthenticated => _firebaseUser != null;
   String get userId => _firebaseUser?.uid ?? '';
+  String? get verificationId => _verificationId;
 
   AuthProvider() {
-    FirebaseService.auth.authStateChanges().listen((User? user) async {
+    _init();
+  }
+
+  Future<void> _init() async {
+    _isLoading = true;
+    notifyListeners();
+    FirebaseService.auth.authStateChanges().listen((user) async {
       _firebaseUser = user;
       if (user != null) {
-        await _ensureUserDoc(user.uid, user.email ?? '');
+        await _ensureUserDoc(user.uid, user.email ?? user.phoneNumber ?? '');
       } else {
         _appUser = null;
       }
+      _isLoading = false;
       notifyListeners();
     });
   }
 
-  Future<void> _ensureUserDoc(String uid, String email) async {
+  Future<void> _ensureUserDoc(String uid, String identifier) async {
     try {
       final doc = await FirebaseService.users.doc(uid).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         _appUser = AppUser.fromMap(data);
       } else {
+        final name = identifier.contains('@') ? identifier.split('@').first : identifier;
         final defaultData = {
           'uid': uid,
-          'email': email,
-          'displayName': email.split('@').first,
+          'email': _firebaseUser?.email ?? '',
+          'phoneNumber': _firebaseUser?.phoneNumber ?? '',
+          'displayName': name,
           'photoUrl': null,
           'status': 'مرحباً، أنا على واتساب',
           'isOnline': true,
@@ -58,18 +67,62 @@ class AuthProvider extends ChangeNotifier {
   Future<void> reloadProfile() async {
     final uid = _firebaseUser?.uid;
     if (uid == null) return;
-    await _ensureUserDoc(uid, _firebaseUser?.email ?? '');
+    await _ensureUserDoc(uid, _firebaseUser?.email ?? _firebaseUser?.phoneNumber ?? '');
     notifyListeners();
   }
 
-  Future<void> login(String email, String password) async {
+  /// Start phone OTP verification
+  Future<void> sendPhoneOtp(String phoneNumber) async {
+    _isLoading = true;
+    _error = null;
+    _verificationId = null;
+    notifyListeners();
+    try {
+      await FirebaseService.auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (cred) async {
+          await FirebaseService.auth.signInWithCredential(cred);
+        },
+        verificationFailed: (e) {
+          _error = e.message ?? 'فشل إرسال رمز التحقق';
+          _isLoading = false;
+          notifyListeners();
+        },
+        codeSent: (vid, _) {
+          _verificationId = vid;
+          _isLoading = false;
+          notifyListeners();
+        },
+        codeAutoRetrievalTimeout: (vid) {
+          if (_verificationId == null) {
+            _error = 'انتهت مهلة التحقق';
+            _isLoading = false;
+            notifyListeners();
+          }
+        },
+        timeout: const Duration(seconds: 60),
+      );
+    } catch (e) {
+      _error = 'حدث خطأ: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Verify OTP code and sign in
+  Future<void> verifyOtp(String code) async {
+    if (_verificationId == null) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      await FirebaseService.signIn(email, password);
-    } on FirebaseAuthException catch (e) {
-      _error = _getErrorMessage(e.code);
+      final cred = fb_auth.PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: code,
+      );
+      await FirebaseService.auth.signInWithCredential(cred);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      _error = e.message ?? 'رمز غير صحيح';
     } catch (e) {
       _error = 'حدث خطأ غير متوقع';
     }
@@ -77,32 +130,9 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> register(String email, String password, String name) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final cred = await FirebaseService.signUp(email, password);
-      final uid = cred.user!.uid;
-      final userData = {
-        'uid': uid,
-        'email': email,
-        'displayName': name,
-        'photoUrl': null,
-        'status': 'مرحباً، أنا على واتساب',
-        'isOnline': true,
-        'lastSeen': DateTime.now(),
-        'createdAt': DateTime.now(),
-      };
-      await FirebaseService.users.doc(uid).set(userData);
-      _appUser = AppUser.fromMap(userData);
-    } on FirebaseAuthException catch (e) {
-      _error = _getErrorMessage(e.code);
-    } catch (e) {
-      _error = 'حدث خطأ غير متوقع';
-    }
-    _isLoading = false;
-    notifyListeners();
+  /// Send OTP again
+  Future<void> resendOtp(String phoneNumber) async {
+    await sendPhoneOtp(phoneNumber);
   }
 
   Future<void> setOnlineStatus(bool online) async {
@@ -116,24 +146,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _verificationId = null;
     try { await setOnlineStatus(false); } catch (_) {}
     await FirebaseService.signOut();
     _firebaseUser = null;
     _appUser = null;
     _error = null;
     notifyListeners();
-  }
-
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'user-not-found': return 'البريد الإلكتروني غير مسجل';
-      case 'wrong-password': return 'كلمة المرور غير صحيحة';
-      case 'email-already-in-use': return 'البريد الإلكتروني مستخدم بالفعل';
-      case 'weak-password': return 'كلمة المرور ضعيفة جداً (6 أحرف على الأقل)';
-      case 'invalid-email': return 'صيغة البريد الإلكتروني غير صحيحة';
-      case 'too-many-requests': return 'تم حظر الطلب مؤقتاً، حاول لاحقاً';
-      case 'invalid-credential': return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-      default: return 'خطأ: $code';
-    }
   }
 }
