@@ -35,13 +35,8 @@ class AuthProvider extends ChangeNotifier {
       final doc = await FirebaseService.users.doc(uid).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
-        // Ensure email field exists (may have been missing)
-        if (data['email'] == null || (data['email'] as String).isEmpty) {
-          await doc.reference.set({'email': email}, SetOptions(merge: true));
-        }
         _appUser = AppUser.fromMap(data);
       } else {
-        // Doc doesn't exist — create it (fixes registration issue)
         final defaultData = {
           'uid': uid,
           'email': email,

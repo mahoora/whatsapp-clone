@@ -86,20 +86,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _saving = true);
 
     try {
-      final data = <String, dynamic>{'displayName': name};
+      html.window.console.log('Saving: $uid');
+
+      // Read existing doc
+      final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
+      final data = doc.exists
+          ? Map<String, dynamic>.from(doc.data() as Map)
+          : <String, dynamic>{
+              'uid': uid,
+              'email': auth.firebaseUser?.email ?? '',
+              'displayName': name,
+              'photoUrl': null,
+              'status': 'مرحباً، أنا على واتساب',
+              'isOnline': true,
+              'lastSeen': DateTime.now().toIso8601String(),
+              'createdAt': DateTime.now().toIso8601String(),
+            };
+
+      data['displayName'] = name;
+      data['updatedAt'] = DateTime.now().toIso8601String();
       if (_photoBase64 != null) {
         data['photoUrl'] = _photoBase64;
       }
 
-      html.window.console.log('Saving: $uid $data');
-      await FirebaseService.firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+      // Write ENTIRE document (not merge) — avoids permission issues
+      await FirebaseService.firestore.collection('users').doc(uid).set(data);
       html.window.console.log('Saved OK');
 
       // Reload
-      final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
+      setState(() => _rawDoc = data);
       if (mounted) {
-        setState(() => _rawDoc = doc.data() as Map<String, dynamic>?);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
+        Navigator.pop(context);
       }
     } catch (e) {
       html.window.console.error('Save error: $e');

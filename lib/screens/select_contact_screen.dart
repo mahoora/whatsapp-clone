@@ -145,38 +145,36 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       final uid = auth.userId;
       if (uid.isEmpty) throw Exception('غير مصرح');
       final phoneKey = phone.replaceAll('+', '');
+      final userDoc = FirebaseService.firestore.collection('users').doc(uid);
 
       html.window.console.log('Saving contact uid=$uid phone=$phone');
 
-      // Read existing user doc
-      final userDoc = FirebaseService.firestore.collection('users').doc(uid);
+      // Read existing doc data (or create defaults)
       final docSnap = await userDoc.get();
-
-      if (!docSnap.exists) {
-        html.window.console.log('User doc $uid does not exist, creating');
-        await userDoc.set({
-          'uid': uid,
-          'email': auth.appUser?.email ?? '',
-          'displayName': auth.appUser?.displayName ?? '',
-          'contacts': {
-            phoneKey: {
-              'phoneNumber': phone,
-              'displayName': name,
+      final data = docSnap.exists
+          ? Map<String, dynamic>.from(docSnap.data() as Map)
+          : <String, dynamic>{
+              'uid': uid,
+              'email': auth.firebaseUser?.email ?? '',
+              'displayName': auth.firebaseUser?.email?.split('@').first ?? 'مستخدم',
+              'photoUrl': null,
+              'status': 'مرحباً، أنا على واتساب',
+              'isOnline': true,
+              'lastSeen': DateTime.now().toIso8601String(),
               'createdAt': DateTime.now().toIso8601String(),
-            },
-          },
-        });
-      } else {
-        html.window.console.log('User doc $uid exists, updating contacts');
-        final data = docSnap.data() as Map<String, dynamic>;
-        final contacts = data['contacts'] is Map ? Map<String, dynamic>.from(data['contacts'] as Map) : <String, dynamic>{};
-        contacts[phoneKey] = {
-          'phoneNumber': phone,
-          'displayName': name,
-          'createdAt': DateTime.now().toIso8601String(),
-        };
-        await userDoc.set({'contacts': contacts}, SetOptions(merge: true));
-      }
+            };
+
+      // Add/update contacts
+      final contacts = data['contacts'] is Map ? Map<String, dynamic>.from(data['contacts'] as Map) : <String, dynamic>{};
+      contacts[phoneKey] = {
+        'phoneNumber': phone,
+        'displayName': name,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+      data['contacts'] = contacts;
+
+      // Write ENTIRE document (not merge) — avoids permission issues
+      await userDoc.set(data);
 
       html.window.console.log('Contact saved successfully');
       if (dialogCtx.mounted) Navigator.pop(dialogCtx);
