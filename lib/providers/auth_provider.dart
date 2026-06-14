@@ -129,7 +129,6 @@ class AuthProvider extends ChangeNotifier {
         final recaptcha = fb_auth.RecaptchaVerifier(
           container: 'recaptcha-container',
           size: fb_auth.RecaptchaVerifierSize.normal,
-          auth: FirebaseService.auth,
         );
         _confirmationResult = await FirebaseService.auth.signInWithPhoneNumber(
           phoneNumber,
