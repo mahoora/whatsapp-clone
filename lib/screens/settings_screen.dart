@@ -27,13 +27,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadDoc() async {
-    final uid = context.read<AuthProvider>().userId;
+    final auth = context.read<AuthProvider>();
+    final uid = auth.userId;
     if (uid.isEmpty) return;
-    final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
-    if (mounted && doc.exists) {
-      setState(() => _rawDoc = doc.data() as Map<String, dynamic>?);
-      final name = _rawDoc?['displayName'] as String? ?? '';
-      _nameCtrl.text = name;
+    try {
+      final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
+      if (mounted && doc.exists) {
+        setState(() => _rawDoc = doc.data() as Map<String, dynamic>?);
+        _nameCtrl.text = _rawDoc?['displayName'] as String? ?? auth.appUser?.displayName ?? '';
+      } else if (mounted) {
+        // Doc doesn't exist — create it
+        final email = auth.firebaseUser?.email ?? '';
+        final defaultData = {
+          'uid': uid,
+          'email': email,
+          'displayName': email.split('@').first,
+          'photoUrl': null,
+          'status': 'مرحباً، أنا على واتساب',
+          'isOnline': true,
+          'lastSeen': DateTime.now().toIso8601String(),
+          'createdAt': DateTime.now().toIso8601String(),
+        };
+        await FirebaseService.firestore.collection('users').doc(uid).set(defaultData);
+        setState(() => _rawDoc = defaultData);
+        _nameCtrl.text = defaultData['displayName'] as String;
+      }
+    } catch (e) {
+      html.window.console.error('Load doc error: $e');
     }
   }
 

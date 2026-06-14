@@ -22,7 +22,7 @@ class AuthProvider extends ChangeNotifier {
     FirebaseService.auth.authStateChanges().listen((User? user) async {
       _firebaseUser = user;
       if (user != null) {
-        await _loadUserProfile(user.uid);
+        await _ensureUserDoc(user.uid, user.email ?? '');
       } else {
         _appUser = null;
       }
@@ -30,10 +30,33 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> _loadUserProfile(String uid) async {
-    final doc = await FirebaseService.users.doc(uid).get();
-    if (doc.exists) {
-      _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
+  Future<void> _ensureUserDoc(String uid, String email) async {
+    try {
+      final doc = await FirebaseService.users.doc(uid).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        // Ensure email field exists (may have been missing)
+        if (data['email'] == null || (data['email'] as String).isEmpty) {
+          await doc.reference.set({'email': email}, SetOptions(merge: true));
+        }
+        _appUser = AppUser.fromMap(data);
+      } else {
+        // Doc doesn't exist — create it (fixes registration issue)
+        final defaultData = {
+          'uid': uid,
+          'email': email,
+          'displayName': email.split('@').first,
+          'photoUrl': null,
+          'status': 'مرحباً، أنا على واتساب',
+          'isOnline': true,
+          'lastSeen': DateTime.now().toIso8601String(),
+          'createdAt': DateTime.now().toIso8601String(),
+        };
+        await FirebaseService.users.doc(uid).set(defaultData);
+        _appUser = AppUser.fromMap(defaultData);
+      }
+    } catch (e) {
+      debugPrint('_ensureUserDoc error: $e');
     }
   }
 
@@ -66,11 +89,11 @@ class AuthProvider extends ChangeNotifier {
         'photoUrl': null,
         'status': 'مرحباً، أنا على واتساب',
         'isOnline': true,
-        'lastSeen': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
+        'lastSeen': DateTime.now().toIso8601String(),
+        'createdAt': DateTime.now().toIso8601String(),
       };
       await FirebaseService.users.doc(uid).set(userData);
-      _appUser = AppUser.fromMap({...userData, 'lastSeen': DateTime.now(), 'createdAt': DateTime.now()});
+      _appUser = AppUser.fromMap(userData);
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
@@ -85,7 +108,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await FirebaseService.users.doc(_firebaseUser!.uid).update({
         'isOnline': online,
-        'lastSeen': FieldValue.serverTimestamp(),
+        'lastSeen': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
   }
