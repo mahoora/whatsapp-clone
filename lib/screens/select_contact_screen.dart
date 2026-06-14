@@ -183,9 +183,18 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
     } catch (e) {
       html.window.console.error('Save contact error: $e');
+      if (dialogCtx.mounted) Navigator.pop(dialogCtx);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1F2C33),
+            title: const Text('خطأ', style: TextStyle(color: Colors.red)),
+            content: Text('$e\n\nStack:\n${StackTrace.current}', style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 12)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('حسناً'))
+            ],
+          ),
         );
       }
     }

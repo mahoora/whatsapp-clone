@@ -18,12 +18,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _nameCtrl = TextEditingController();
   String? _photoBase64;
   bool _saving = false;
+  Map<String, dynamic>? _rawDoc;
 
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().appUser;
-    if (user != null) _nameCtrl.text = user.displayName;
+    _loadDoc();
+  }
+
+  Future<void> _loadDoc() async {
+    final uid = context.read<AuthProvider>().userId;
+    if (uid.isEmpty) return;
+    final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
+    if (mounted && doc.exists) {
+      setState(() => _rawDoc = doc.data() as Map<String, dynamic>?);
+      final name = _rawDoc?['displayName'] as String? ?? '';
+      _nameCtrl.text = name;
+    }
   }
 
   @override
@@ -52,35 +63,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final uid = auth.userId;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
-
     setState(() => _saving = true);
 
     try {
-      final data = <String, dynamic>{
-        'displayName': name,
-        'updatedAt': Timestamp.now(),
-      };
+      final data = <String, dynamic>{'displayName': name};
       if (_photoBase64 != null) {
         data['photoUrl'] = _photoBase64;
       }
 
-      html.window.console.log('Saving profile uid=$uid data=${data.keys}');
+      html.window.console.log('Saving: $uid $data');
       await FirebaseService.firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
-      html.window.console.log('Profile saved successfully');
+      html.window.console.log('Saved OK');
 
+      // Reload
+      final doc = await FirebaseService.firestore.collection('users').doc(uid).get();
       if (mounted) {
+        setState(() => _rawDoc = doc.data() as Map<String, dynamic>?);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
-        Navigator.pop(context);
       }
     } catch (e) {
-      html.window.console.error('Save profile error: $e');
+      html.window.console.error('Save error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
+          SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 8)),
         );
       }
     }
     setState(() => _saving = false);
+  }
+
+  Future<void> _testWrite() async {
+    final uid = context.read<AuthProvider>().userId;
+    if (uid.isEmpty) return;
+    try {
+      // Test 1: simple set
+      html.window.console.log('TEST: writing test field');
+      await FirebaseService.firestore.collection('users').doc(uid).set({'testField': 'ok'}, SetOptions(merge: true));
+      html.window.console.log('TEST write OK');
+
+      // Test 2: add to contacts collection (not nested)
+      await FirebaseService.firestore.collection('contacts_test').add({
+        'uid': uid, 'name': 'test', 'createdAt': Timestamp.now(),
+      });
+      html.window.console.log('TEST contacts add OK');
+
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختبار الكتابة نجح')));
+    } catch (e) {
+      html.window.console.error('TEST error: $e');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1F2C33),
+            title: const Text('خطأ', style: TextStyle(color: Colors.red)),
+            content: Text('$e', style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 14)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('حسناً'))
+            ],
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -94,6 +137,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: const Color(0xFF202C33),
         elevation: 0,
         title: const Text('الإعدادات', style: TextStyle(color: Color(0xFFE9EDEF), fontSize: 18)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report, color: Color(0xFF8696A0)),
+            onPressed: _testWrite,
+          ),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFE9EDEF)),
           onPressed: () => Navigator.pop(context),
@@ -112,14 +161,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     backgroundColor: const Color(0xFF313D45),
                     backgroundImage: _photoBase64 != null
                         ? MemoryImage(base64Decode(_photoBase64!.split(',').last))
-                        : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty
-                            ? (user.photoUrl!.startsWith('data:')
-                                ? MemoryImage(base64Decode(user.photoUrl!.split(',').last))
-                                : NetworkImage(user.photoUrl!))
+                        : (_rawDoc?['photoUrl'] != null && (_rawDoc!['photoUrl'] as String).isNotEmpty
+                            ? ((_rawDoc!['photoUrl'] as String).startsWith('data:')
+                                ? MemoryImage(base64Decode((_rawDoc!['photoUrl'] as String).split(',').last))
+                                : NetworkImage(_rawDoc!['photoUrl'] as String))
                             : null),
-                    child: _photoBase64 == null && (user?.photoUrl == null || user!.photoUrl!.isEmpty)
+                    child: _photoBase64 == null && (_rawDoc?['photoUrl'] == null || (_rawDoc!['photoUrl'] as String).isEmpty)
                         ? Text(
-                            (user?.displayName ?? 'U')[0].toUpperCase(),
+                            (_rawDoc?['displayName'] ?? 'U')[0].toUpperCase(),
                             style: const TextStyle(fontSize: 36, color: Color(0xFFE9EDEF)),
                           )
                         : null,
@@ -163,14 +212,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const Text('معلومات الحساب', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF00A884))),
                 const SizedBox(height: 12),
-                _infoRow('البريد', user?.email ?? ''),
+                _infoRow('البريد', _rawDoc?['email'] as String? ?? ''),
                 const Divider(color: Color(0xFF313D45), height: 1),
-                _infoRow('الحالة', user?.status ?? ''),
+                _infoRow('الحالة', _rawDoc?['status'] as String? ?? '(فارغ)'),
                 const Divider(color: Color(0xFF313D45), height: 1),
-                _infoRow('آخر ظهور', user?.lastSeen?.toString() ?? ''),
+                Text('آخر ظهور: ${_rawDoc?['lastSeen'].runtimeType ?? 'null'}', style: const TextStyle(color: Color(0xFF8696A0), fontSize: 12)),
               ],
             ),
           ),
+          if (_rawDoc != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2C33),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('تشخيص - مفاتيح المستند', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF00A884))),
+                  const SizedBox(height: 8),
+                  Text(_rawDoc!.keys.join(', '), style: const TextStyle(color: Color(0xFF8696A0), fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
