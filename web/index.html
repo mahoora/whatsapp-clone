@@ -21,18 +21,43 @@
     .spinner { width: 40px; height: 40px; border: 4px solid #313D45; border-top-color: #00A884; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
-  <!-- Flutter Firebase plugin loads its own SDK -->
 </head>
 <body>
-  <div id="recaptcha-container"></div>
-  <div id="root">
-<body>
+  <div id="recaptcha-container" style="position:fixed;bottom:0;right:0;z-index:999999"></div>
   <div id="root">
     <div id="loading">
       <div class="spinner"></div>
       <span>جاري التحميل...</span>
     </div>
   </div>
+  <script>
+  window._phoneAuth = {
+    _verifier: null,
+    _confirmationResult: null,
+    sendOtp: function(phoneNumber) {
+      var self = this;
+      self._verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible',
+        'callback': function(response) { console.log('reCAPTCHA solved'); }
+      });
+      return firebase.auth().signInWithPhoneNumber(phoneNumber, self._verifier)
+        .then(function(confirmationResult) {
+          self._confirmationResult = confirmationResult;
+          return confirmationResult.verificationId;
+        })
+        .catch(function(error) {
+          throw new Error(error.message || 'فشل إرسال الرمز');
+        });
+    },
+    verifyOtp: function(code) {
+      if (!this._confirmationResult) throw new Error('لم يتم إرسال الرمز بعد');
+      return this._confirmationResult.confirm(code)
+        .then(function(result) { return result.user.uid; })
+        .catch(function(error) { throw new Error(error.message || 'رمز غير صحيح'); });
+    }
+  };
+  </script>
   <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
+

@@ -127,6 +127,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (kIsWeb) {
         final recaptcha = fb_auth.RecaptchaVerifier(
+          auth: FirebaseService.auth as dynamic,
           container: 'recaptcha-container',
           size: fb_auth.RecaptchaVerifierSize.normal,
         );
