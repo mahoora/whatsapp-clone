@@ -37,11 +37,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _switchMode() {
+    context.read<AuthProvider>().clearError();
     setState(() {
       _isEmailMode = !_isEmailMode;
       _showOtp = false;
       _otpCtrl.clear();
-      _error = null;
     });
   }
 

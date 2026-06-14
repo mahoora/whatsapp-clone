@@ -178,6 +178,11 @@ class AuthProvider extends ChangeNotifier {
     await sendPhoneOtp(phoneNumber);
   }
 
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
   Future<void> setOnlineStatus(bool online) async {
     if (_firebaseUser == null) return;
     try {
