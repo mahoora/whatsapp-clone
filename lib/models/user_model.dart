@@ -28,7 +28,11 @@ class AppUser {
       photoUrl: map['photoUrl'],
       status: map['status'] ?? 'مرحباً، أنا على واتساب',
       isOnline: map['isOnline'] ?? false,
-      lastSeen: (map['lastSeen'] as dynamic)?.toDate(),
+      lastSeen: map['lastSeen'] != null
+          ? (map['lastSeen'] is String
+              ? DateTime.tryParse(map['lastSeen'])
+              : (map['lastSeen'] as dynamic)?.toDate())
+          : null,
     );
   }
 

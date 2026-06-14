@@ -45,8 +45,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'photoUrl': null,
           'status': 'مرحباً، أنا على واتساب',
           'isOnline': true,
-          'lastSeen': DateTime.now().toIso8601String(),
-          'createdAt': DateTime.now().toIso8601String(),
+          'lastSeen': DateTime.now(),
+          'createdAt': DateTime.now(),
         };
         await FirebaseService.firestore.collection('users').doc(uid).set(defaultData);
         setState(() => _rawDoc = defaultData);
@@ -99,12 +99,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'photoUrl': null,
               'status': 'مرحباً، أنا على واتساب',
               'isOnline': true,
-              'lastSeen': DateTime.now().toIso8601String(),
-              'createdAt': DateTime.now().toIso8601String(),
+              'lastSeen': DateTime.now(),
+              'createdAt': DateTime.now(),
             };
 
       data['displayName'] = name;
-      data['updatedAt'] = DateTime.now().toIso8601String();
+      data['updatedAt'] = DateTime.now();
       if (_photoBase64 != null) {
         data['photoUrl'] = _photoBase64;
       }

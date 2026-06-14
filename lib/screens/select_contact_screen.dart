@@ -159,8 +159,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               'photoUrl': null,
               'status': 'مرحباً، أنا على واتساب',
               'isOnline': true,
-              'lastSeen': DateTime.now().toIso8601String(),
-              'createdAt': DateTime.now().toIso8601String(),
+              'lastSeen': DateTime.now(),
+              'createdAt': DateTime.now(),
             };
 
       // Add/update contacts
@@ -168,7 +168,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       contacts[phoneKey] = {
         'phoneNumber': phone,
         'displayName': name,
-        'createdAt': DateTime.now().toIso8601String(),
+        'createdAt': DateTime.now(),
       };
       data['contacts'] = contacts;
 

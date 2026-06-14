@@ -102,16 +102,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _pickAndUploadStatus() {
     final input = html.FileUploadInputElement()
       ..accept = 'image/*'
-      ..setAttribute('capture', 'environment');
+      ..setAttribute('capture', 'environment')
+      ..style.position = 'fixed'
+      ..style.top = '0'
+      ..style.left = '0'
+      ..style.width = '1px'
+      ..style.height = '1px'
+      ..style.opacity = '0';
+    html.document.body!.append(input);
     input.click();
     input.onChange.listen((e) async {
       final files = input.files;
+      input.remove();
       if (files == null || files.isEmpty) {
         html.window.console.log('No file selected');
         return;
       }
       final reader = html.FileReader();
-      reader.readAsDataUrl(files[0]);
       reader.onLoadEnd.listen((_) async {
         final b64 = reader.result as String;
         final uid = context.read<AuthProvider>().userId;
@@ -130,11 +137,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           html.window.console.error('Status upload error: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('خطأ: $e')),
+              SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
             );
           }
         }
       });
+      reader.onError.listen((e) {
+        html.window.console.error('FileReader error: $e');
+      });
+      reader.readAsDataUrl(files[0]);
     });
   }
 

@@ -44,8 +44,8 @@ class AuthProvider extends ChangeNotifier {
           'photoUrl': null,
           'status': 'مرحباً، أنا على واتساب',
           'isOnline': true,
-          'lastSeen': DateTime.now().toIso8601String(),
-          'createdAt': DateTime.now().toIso8601String(),
+          'lastSeen': DateTime.now(),
+          'createdAt': DateTime.now(),
         };
         await FirebaseService.users.doc(uid).set(defaultData);
         _appUser = AppUser.fromMap(defaultData);
@@ -91,8 +91,8 @@ class AuthProvider extends ChangeNotifier {
         'photoUrl': null,
         'status': 'مرحباً، أنا على واتساب',
         'isOnline': true,
-        'lastSeen': DateTime.now().toIso8601String(),
-        'createdAt': DateTime.now().toIso8601String(),
+        'lastSeen': DateTime.now(),
+        'createdAt': DateTime.now(),
       };
       await FirebaseService.users.doc(uid).set(userData);
       _appUser = AppUser.fromMap(userData);
@@ -110,7 +110,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await FirebaseService.users.doc(_firebaseUser!.uid).update({
         'isOnline': online,
-        'lastSeen': DateTime.now().toIso8601String(),
+        'lastSeen': DateTime.now(),
       });
     } catch (_) {}
   }
