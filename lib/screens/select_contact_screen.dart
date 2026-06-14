@@ -270,47 +270,83 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           ),
           const Divider(height: 1, color: Color(0xFF313D45)),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseService.firestore
-                  .collection('users')
-                  .orderBy('displayName')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Color(0xFF8696A0))),
-                  );
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF00A884)));
-                }
-                final users = snapshot.data?.docs
-                    .map((doc) => AppUser.fromMap(doc.data() as Map<String, dynamic>))
-                    .where((u) => u.uid != myUid)
-                    .toList() ?? [];
-
-                if (users.isEmpty) {
-                  return const Center(
-                    child: Text('لا توجد جهات اتصال', style: TextStyle(color: Color(0xFF8696A0))),
-                  );
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseService.firestore.collection('users').doc(myUid).snapshots(),
+              builder: (context, myDocSnap) {
+                final savedContacts = <String, dynamic>{};
+                if (myDocSnap.hasData && myDocSnap.data!.exists) {
+                  final myData = myDocSnap.data!.data() as Map<String, dynamic>? ?? {};
+                  if (myData['contacts'] is Map) {
+                    savedContacts.addAll(Map<String, dynamic>.from(myData['contacts'] as Map));
+                  }
                 }
 
-                return ListView.builder(
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    final user = users[index];
-                    final initial = user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?';
-                    return ListTile(
-                      leading: CircleAvatar(
-                        radius: 24,
-                        backgroundColor: const Color(0xFF313D45),
-                        child: Text(initial, style: const TextStyle(color: Color(0xFFE9EDEF), fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(user.displayName, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 16)),
-                      subtitle: user.phoneNumber != null && user.phoneNumber!.isNotEmpty
-                          ? Text(user.phoneNumber!, style: const TextStyle(color: Color(0xFF8696A0), fontSize: 13))
-                          : Text(user.email.isNotEmpty ? user.email : '', style: const TextStyle(color: Color(0xFF8696A0), fontSize: 13)),
-                      onTap: () => _startChat(user),
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseService.firestore
+                      .collection('users')
+                      .orderBy('displayName')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Color(0xFF8696A0))),
+                      );
+                    }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: Color(0xFF00A884)));
+                    }
+                    final users = snapshot.data?.docs
+                        .map((doc) => AppUser.fromMap(doc.data() as Map<String, dynamic>))
+                        .where((u) => u.uid != myUid)
+                        .toList() ?? [];
+
+                    // Combine saved contacts + registered users
+                    final items = <_ContactItem>[];
+                    for (final entry in savedContacts.entries) {
+                      final c = entry.value as Map<String, dynamic>;
+                      items.add(_ContactItem(
+                        name: c['displayName'] as String? ?? 'جهة اتصال',
+                        subtitle: c['phoneNumber'] as String? ?? '',
+                        isSaved: true,
+                        data: c,
+                      ));
+                    }
+                    for (final u in users) {
+                      // Avoid duplicates (match by uid)
+                      if (!items.any((i) => i.subtitle == u.phoneNumber || i.subtitle == u.email)) {
+                        items.add(_ContactItem(
+                          name: u.displayName,
+                          subtitle: u.phoneNumber ?? u.email,
+                          isSaved: false,
+                          user: u,
+                        ));
+                      }
+                    }
+
+                    if (items.isEmpty) {
+                      return const Center(
+                        child: Text('لا توجد جهات اتصال', style: TextStyle(color: Color(0xFF8696A0))),
+                      );
+                    }
+
+                    return ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final initial = item.name[0].toUpperCase();
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: item.isSaved ? const Color(0xFF2A3942) : const Color(0xFF313D45),
+                            child: Text(initial, style: const TextStyle(color: Color(0xFFE9EDEF), fontWeight: FontWeight.bold)),
+                          ),
+                          title: Text(item.name, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 16)),
+                          subtitle: Text(item.subtitle, style: const TextStyle(color: Color(0xFF8696A0), fontSize: 13)),
+                          onTap: () {
+                            if (item.user != null) _startChat(item.user!);
+                          },
+                        );
+                      },
                     );
                   },
                 );
@@ -321,4 +357,13 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       ),
     );
   }
+}
+
+class _ContactItem {
+  final String name;
+  final String subtitle;
+  final bool isSaved;
+  final Map<String, dynamic>? data;
+  final AppUser? user;
+  _ContactItem({required this.name, required this.subtitle, required this.isSaved, this.data, this.user});
 }

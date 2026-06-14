@@ -13,6 +13,7 @@ import 'chat_screen.dart';
 import 'select_contact_screen.dart';
 import 'settings_screen.dart';
 import 'create_group_screen.dart';
+import 'video_call_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -305,72 +306,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildStatusTab() {
     return Container(
       color: const Color(0xFF111B21),
-      child: ListView(
-        padding: const EdgeInsets.only(top: 8),
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Stack(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseService.firestore
+            .collection('status')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Color(0xFF8696A0))));
+          }
+          final statuses = snapshot.data?.docs ?? [];
+          return ListView(
+            padding: const EdgeInsets.only(top: 8),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: const Color(0xFF313D45),
-                      child: Icon(Icons.person, size: 28, color: const Color(0xFF8696A0)),
-                    ),
-                    Positioned(
-                      bottom: 0, right: 0,
-                      child: Container(
-                        width: 20, height: 20,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF00A884),
-                          shape: BoxShape.circle,
+                    Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: const Color(0xFF313D45),
+                          child: const Icon(Icons.person, size: 28, color: Color(0xFF8696A0)),
                         ),
-                        child: const Icon(Icons.add, size: 14, color: Colors.white),
+                        Positioned(
+                          bottom: 0, right: 0,
+                          child: Container(
+                            width: 20, height: 20,
+                            decoration: const BoxDecoration(color: Color(0xFF00A884), shape: BoxShape.circle),
+                            child: const Icon(Icons.add, size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('حالتي', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFFE9EDEF))),
+                          const SizedBox(height: 2),
+                          Text(statuses.isNotEmpty ? 'اضغط لعرض حالتك' : 'اضغط لإضافة حالة', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('حالتي', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFFE9EDEF))),
-                      const SizedBox(height: 2),
-                      Text('اضغط لإضافة حالة', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-                    ],
-                  ),
+              ),
+              if (statuses.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text('التحديثات الأخيرة', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF00A884))),
                 ),
+                ...statuses.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final imgB64 = data['imageBase64'] as String?;
+                  return ListTile(
+                    leading: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: const Color(0xFF313D45),
+                      backgroundImage: imgB64 != null ? MemoryImage(base64Decode(imgB64.split(',').last)) : null,
+                      child: imgB64 == null ? const Icon(Icons.image, size: 20, color: Color(0xFF8696A0)) : null,
+                    ),
+                    title: Text('حالة', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFFE9EDEF))),
+                    subtitle: Text('منذ لحظات', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
+                    onTap: () {},
+                  );
+                }),
               ],
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('التحديثات الأخيرة', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF00A884))),
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundColor: const Color(0xFF313D45),
-              child: const Icon(Icons.person, size: 24, color: Color(0xFF8696A0)),
-            ),
-            title: Text('أحمد', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFFE9EDEF))),
-            subtitle: Text('منذ 5 دقائق', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              radius: 24,
-              backgroundColor: const Color(0xFF313D45),
-              child: const Icon(Icons.person, size: 24, color: Color(0xFF8696A0)),
-            ),
-            title: Text('سارة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFFE9EDEF))),
-            subtitle: Text('منذ ساعة', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-            onTap: () {},
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -440,8 +447,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _startCall() {
-    html.window.open('https://meet.google.com/', '_blank');
+  void _startCall({String name = 'المستخدم'}) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(name: name)));
   }
 
   Widget _buildCommunitiesTab() {
