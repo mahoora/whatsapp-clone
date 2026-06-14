@@ -121,31 +121,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.camera_alt, color: Color(0xFFE9EDEF), size: 22), onPressed: () {
-            final input = html.FileUploadInputElement()..accept = 'image/*';
-            input.click();
-            input.onChange.listen((e) async {
-              final files = input.files;
-              if (files!.isEmpty) return;
-              final reader = html.FileReader();
-              reader.readAsDataUrl(files[0]);
-              reader.onLoadEnd.listen((_) async {
-                final b64 = reader.result as String;
-                final bytes = base64Decode(b64.split(',').last);
-                final ts = DateTime.now().millisecondsSinceEpoch;
-                try {
-                  final ref = FirebaseService.storage.ref().child('status/$ts.jpg');
-                  await ref.putData(bytes);
-                  final url = await ref.getDownloadURL();
-                  final uid = context.read<AuthProvider>().userId;
-                  await FirebaseService.firestore.collection('status').add({
-                    'uid': uid,
-                    'imageUrl': url,
-                    'createdAt': FieldValue.serverTimestamp(),
-                  });
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
-                } catch (_) {}
-              });
-            });
+            _pickAndUploadStatus();
           }),
           IconButton(icon: const Icon(Icons.search, color: Color(0xFFE9EDEF), size: 22), onPressed: () {}),
           PopupMenuButton<String>(
@@ -201,37 +177,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ? FloatingActionButton(
                   mini: true,
                   backgroundColor: const Color(0xFF00A884),
-                  onPressed: () {
-                    final input = html.FileUploadInputElement()..accept = 'image/*';
-                    input.click();
-                    input.onChange.listen((e) async {
-                      final files = input.files;
-                      if (files!.isEmpty) return;
-                      final reader = html.FileReader();
-                      reader.readAsDataUrl(files[0]);
-                      reader.onLoadEnd.listen((_) async {
-                        final b64 = reader.result as String;
-                        final bytes = base64Decode(b64.split(',').last);
-                        final ts = DateTime.now().millisecondsSinceEpoch;
-                        try {
-                          final ref = FirebaseService.storage.ref().child('status/$ts.jpg');
-                          await ref.putData(bytes);
-                          final url = await ref.getDownloadURL();
-                          final uid = context.read<AuthProvider>().userId;
-                          await FirebaseService.firestore.collection('status').add({
-                            'uid': uid,
-                            'imageUrl': url,
-                            'createdAt': FieldValue.serverTimestamp(),
-                          });
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
-                        } catch (_) {}
-                      });
-                    });
-                  },
+                  onPressed: () => _pickAndUploadStatus(),
                   child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
                 )
               : null,
     );
+  }
+
+  void _pickAndUploadStatus() {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    input.onChange.listen((e) async {
+      final files = input.files;
+      if (files!.isEmpty) return;
+      final reader = html.FileReader();
+      reader.readAsDataUrl(files[0]);
+      reader.onLoadEnd.listen((_) async {
+        final b64 = reader.result as String;
+        final bytes = base64Decode(b64.split(',').last);
+        final uid = context.read<AuthProvider>().userId;
+        try {
+          final ref = FirebaseService.storage.ref().child('status/${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await ref.putData(bytes);
+          final url = await ref.getDownloadURL();
+          await FirebaseService.firestore.collection('status').add({
+            'uid': uid,
+            'imageUrl': url,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+        } catch (_) {
+          // Fallback: store base64 directly in Firestore
+          try {
+            await FirebaseService.firestore.collection('status').add({
+              'uid': uid,
+              'imageBase64': b64,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل: $e')));
+          }
+        }
+      });
+    });
   }
 
   Widget _buildChatsTab() {

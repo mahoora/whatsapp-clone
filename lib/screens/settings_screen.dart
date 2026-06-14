@@ -54,12 +54,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final data = <String, dynamic>{'displayName': name};
       if (_photoBase64 != null) {
-        // Upload to Firebase Storage
         final bytes = base64Decode(_photoBase64!.split(',').last);
-        final url = await FirebaseService.uploadImage('profiles/$uid.jpg', bytes);
-        data['photoUrl'] = url;
+        try {
+          // Try Firebase Storage first
+          final url = await FirebaseService.uploadImage('profiles/$uid.jpg', bytes);
+          data['photoUrl'] = url;
+        } catch (_) {
+          // Fallback: store base64 in Firestore
+          data['photoUrl'] = _photoBase64;
+          data['photoBase64'] = _photoBase64;
+        }
       }
-      await FirebaseService.users.doc(uid).update(data);
+      // Use set with merge instead of update to avoid "document doesn't exist" error
+      await FirebaseService.users.doc(uid).set(data, SetOptions(merge: true));
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {

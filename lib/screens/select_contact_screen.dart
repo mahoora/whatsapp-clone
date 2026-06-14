@@ -142,14 +142,31 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     try {
       final uid = auth.userId;
       if (uid.isEmpty) throw Exception('غير مصرح');
-      await FirebaseService.firestore
-          .collection('users').doc(uid)
-          .collection('contacts').doc(phone.replaceAll('+', '')).set({
-        'phoneNumber': phone,
-        'displayName': name,
-        'uid': phone.replaceAll('+', ''),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final phoneKey = phone.replaceAll('+', '');
+      final userDoc = FirebaseService.users.doc(uid);
+      final docSnap = await userDoc.get();
+      if (docSnap.exists) {
+        // Update existing doc: store contacts in a map field
+        await userDoc.update({
+          'contacts.$phoneKey': {
+            'phoneNumber': phone,
+            'displayName': name,
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+        });
+      } else {
+        // Create doc with contacts (unlikely but safe)
+        await userDoc.set({
+          'uid': uid,
+          'contacts': {
+            phoneKey: {
+              'phoneNumber': phone,
+              'displayName': name,
+              'createdAt': FieldValue.serverTimestamp(),
+            },
+          },
+        }, SetOptions(merge: true));
+      }
       if (dialogCtx.mounted) Navigator.pop(dialogCtx);
     } catch (e) {
       if (mounted) {
