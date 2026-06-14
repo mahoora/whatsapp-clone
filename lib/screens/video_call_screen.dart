@@ -1,5 +1,4 @@
 import 'dart:html' as html;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class VideoCallScreen extends StatefulWidget {
@@ -11,16 +10,62 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
-  bool _cameraReady = false;
   bool _micOn = true;
   bool _videoOn = true;
   String? _error;
   html.MediaStream? _stream;
+  html.DivElement? _overlay;
   html.VideoElement? _video;
+  html.DivElement? _controls;
 
   @override
   void initState() {
     super.initState();
+    _createOverlay();
+  }
+
+  void _createOverlay() {
+    _overlay = html.DivElement()
+      ..style.position = 'fixed'
+      ..style.top = '0'
+      ..style.left = '0'
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..style.backgroundColor = 'black'
+      ..style.zIndex = '99999'
+      ..style.display = 'flex'
+      ..style.flexDirection = 'column'
+      ..style.overflow = 'hidden';
+
+    // Name label
+    final nameLabel = html.DivElement()
+      ..style.padding = '40px 16px 0'
+      ..style.textAlign = 'center'
+      ..style.color = 'white'
+      ..style.fontSize = '20px'
+      ..style.fontWeight = 'bold'
+      ..innerText = widget.name;
+    _overlay!.append(nameLabel);
+
+    // Video element
+    _video = html.VideoElement()
+      ..autoplay = true
+      ..muted = true
+      ..setAttribute('playsinline', '')
+      ..style.flex = '1'
+      ..style.width = '100%'
+      ..style.objectFit = 'cover';
+    _overlay!.append(_video!);
+
+    // Controls
+    _controls = html.DivElement()
+      ..style.padding = '24px'
+      ..style.display = 'flex'
+      ..style.justifyContent = 'center'
+      ..style.gap = '32px';
+    _overlay!.append(_controls!);
+
+    html.document.body!.append(_overlay!);
     _initCamera();
   }
 
@@ -30,122 +75,70 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         'video': true,
         'audio': true,
       });
-      _video = html.VideoElement()
-        ..autoplay = true
-        ..muted = true
-        ..setAttribute('playsinline', '')
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..style.objectFit = 'cover'
-        ..srcObject = _stream;
-      html.document.body!.append(_video!);
-      // Register for Flutter HtmlElementView
-      // ignore: undefined_prefixed_name
-      ui.platformViewRegistry.registerViewFactory('call-video', (int id) => _video!);
-      if (mounted) setState(() => _cameraReady = true);
+      _video!.srcObject = _stream;
+      _addButtons();
     } catch (e) {
       html.window.console.error('Camera error: $e');
-      if (mounted) setState(() => _error = 'تعذر الوصول للكاميرا: تأكد من السماح بها في المتصفح');
+      if (_overlay != null) {
+        _overlay!.children.first.innerText = 'تعذر الوصول للكاميرا: تأكد من السماح بها';
+      }
     }
+  }
+
+  void _addButtons() {
+    if (_controls == null || !_controls!.isConnected) return;
+    _controls!.innerHtml = '';
+    _controls!.append(_btn(_micOn ? '🎤' : '🔇', () {
+      _micOn = !_micOn;
+      _stream?.getAudioTracks().forEach((t) => t.enabled = _micOn);
+      _addButtons();
+    }));
+    _controls!.append(_btn('📞', () {
+      _cleanUp();
+      if (mounted) Navigator.pop(context);
+    }, red: true));
+    _controls!.append(_btn(_videoOn ? '📹' : '🚫', () {
+      _videoOn = !_videoOn;
+      _stream?.getVideoTracks().forEach((t) => t.enabled = _videoOn);
+      _addButtons();
+    }));
+  }
+
+  html.Element _btn(String text, void Function() onTap, {bool red = false}) {
+    final btn = html.ButtonElement()
+      ..style.width = '56px'
+      ..style.height = '56px'
+      ..style.borderRadius = '50%'
+      ..style.border = 'none'
+      ..style.fontSize = '28px'
+      ..style.cursor = 'pointer'
+      ..style.backgroundColor = red ? '#EF4444' : '#2A3942'
+      ..style.color = 'white'
+      ..style.display = 'flex'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..innerText = text;
+    btn.onClick.listen((_) => onTap());
+    return btn;
+  }
+
+  void _cleanUp() {
+    _stream?.getTracks().forEach((t) => t.stop());
+    _video?.remove();
+    _overlay?.remove();
+    _stream = null;
+    _video = null;
+    _overlay = null;
   }
 
   @override
   void dispose() {
-    _stream?.getTracks().forEach((t) => t.stop());
-    if (_video?.parentNode != null) _video!.remove();
+    _cleanUp();
     super.dispose();
-  }
-
-  void _toggleMic() {
-    _stream?.getAudioTracks().forEach((t) { t.enabled = !_micOn; });
-    setState(() => _micOn = !_micOn);
-  }
-
-  void _toggleVideo() {
-    _stream?.getVideoTracks().forEach((t) { t.enabled = !_videoOn; });
-    setState(() => _videoOn = !_videoOn);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (_cameraReady && _videoOn)
-            Positioned.fill(child: HtmlElementView(viewType: 'call-video'))
-          else if (!_cameraReady && _error == null)
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Color(0xFF00A884)),
-                  SizedBox(height: 16),
-                  Text('جاري تشغيل الكاميرا...', style: TextStyle(color: Colors.white, fontSize: 16)),
-                ],
-              ),
-            )
-          else
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.person, size: 80, color: Color(0xFF8696A0)),
-                  const SizedBox(height: 16),
-                  Text(widget.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
-                  ],
-                ],
-              ),
-            ),
-          // Top bar
-          Positioned(
-            top: 40,
-            left: 20,
-            child: Text(widget.name, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          Positioned(
-            top: 40,
-            right: 20,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          // Bottom controls
-          Positioned(
-            bottom: 60,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _controlButton(_micOn ? Icons.mic : Icons.mic_off, _micOn ? Colors.white : Colors.redAccent, _toggleMic),
-                const SizedBox(width: 24),
-                _controlButton(Icons.call_end, Colors.red, () => Navigator.pop(context), bg: Colors.red),
-                const SizedBox(width: 24),
-                _controlButton(_videoOn ? Icons.videocam : Icons.videocam_off, _videoOn ? Colors.white : Colors.redAccent, _toggleVideo),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _controlButton(IconData icon, Color color, VoidCallback onTap, {Color? bg}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56, height: 56,
-        decoration: BoxDecoration(
-          color: bg ?? const Color(0xFF2A3942),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 24),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
