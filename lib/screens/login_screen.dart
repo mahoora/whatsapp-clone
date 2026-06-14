@@ -275,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
 
@@ -291,8 +291,9 @@ class _LoginScreenState extends State<LoginScreen> {
       auth.verifyOtp(_otpCtrl.text.trim());
     } else {
       final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(' ', '')}';
-      auth.sendPhoneOtp(phone);
-      if (auth.error == null) setState(() => _showOtp = true);
+      await auth.sendPhoneOtp(phone);
+      if (auth.verificationId != null && !mounted) return;
+      if (mounted) setState(() => _showOtp = true);
     }
   }
 }
