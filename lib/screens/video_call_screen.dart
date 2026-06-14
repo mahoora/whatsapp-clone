@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 
 class VideoCallScreen extends StatefulWidget {
   final String name;
-  const VideoCallScreen({super.key, this.name = 'المستخدم'});
+  final bool video;
+  const VideoCallScreen({super.key, this.name = 'المستخدم', this.video = false});
 
   @override
   State<VideoCallScreen> createState() => _VideoCallScreenState();
@@ -67,14 +68,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       ..style.justifyContent = 'center'
       ..style.overflow = 'hidden';
 
-    _video = html.VideoElement()
-      ..autoplay = true
-      ..muted = true
-      ..setAttribute('playsinline', '')
-      ..style.maxWidth = '100%'
-      ..style.maxHeight = '100%'
-      ..style.objectFit = 'contain';
-    videoContainer.append(_video!);
+    if (widget.video) {
+      _video = html.VideoElement()
+        ..autoplay = true
+        ..muted = true
+        ..setAttribute('playsinline', '')
+        ..style.maxWidth = '100%'
+        ..style.maxHeight = '100%'
+        ..style.objectFit = 'contain';
+      videoContainer.append(_video!);
+    } else {
+      final icon = html.DivElement()
+        ..style.fontSize = '80px'
+        ..style.color = '#8696A0'
+        ..style.textAlign = 'center'
+        ..innerText = '👤';
+      videoContainer.append(icon);
+    }
     _overlay!.append(videoContainer);
 
     // Controls
@@ -92,11 +102,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Future<void> _initCamera(html.DivElement controlsRow) async {
     try {
-      _stream = await html.window.navigator.mediaDevices!.getUserMedia({
-        'video': {'width': 640, 'height': 480, 'facingMode': 'user'},
-        'audio': true,
-      });
-      _video!.srcObject = _stream;
+      final constraints = widget.video
+          ? {'video': {'width': 640, 'height': 480, 'facingMode': 'user'}, 'audio': true}
+          : {'video': false, 'audio': true};
+      _stream = await html.window.navigator.mediaDevices!.getUserMedia(constraints);
+      if (_video != null) _video!.srcObject = _stream;
       _addButtons(controlsRow);
       if (mounted) setState(() => _loading = false);
     } catch (e) {

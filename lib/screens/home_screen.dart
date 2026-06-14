@@ -100,11 +100,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _pickAndUploadStatus() {
-    final input = html.FileUploadInputElement()..accept = 'image/*';
+    final input = html.FileUploadInputElement()
+      ..accept = 'image/*'
+      ..setAttribute('capture', 'environment');
     input.click();
     input.onChange.listen((e) async {
       final files = input.files;
-      if (files!.isEmpty) return;
+      if (files == null || files.isEmpty) {
+        html.window.console.log('No file selected');
+        return;
+      }
       final reader = html.FileReader();
       reader.readAsDataUrl(files[0]);
       reader.onLoadEnd.listen((_) async {
@@ -448,7 +453,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _startCall({String name = 'المستخدم'}) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(name: name)));
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1F2C33),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(name, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _callOption(Icons.phone, 'مكالمة صوتية', () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(name: name))); }),
+                _callOption(Icons.videocam, 'مكالمة فيديو', () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => VideoCallScreen(name: name, video: true))); }),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _callOption(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A3942),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: const Color(0xFF00A884)),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 14)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCommunitiesTab() {
