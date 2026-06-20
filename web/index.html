@@ -30,34 +30,6 @@
       <span>جاري التحميل...</span>
     </div>
   </div>
-  <script>
-  window._phoneAuth = {
-    _verifier: null,
-    _confirmationResult: null,
-    sendOtp: function(phoneNumber) {
-      var self = this;
-      self._verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        'size': 'invisible',
-        'callback': function(response) { console.log('reCAPTCHA solved'); }
-      });
-      return firebase.auth().signInWithPhoneNumber(phoneNumber, self._verifier)
-        .then(function(confirmationResult) {
-          self._confirmationResult = confirmationResult;
-          return confirmationResult.verificationId;
-        })
-        .catch(function(error) {
-          throw new Error(error.message || 'فشل إرسال الرمز');
-        });
-    },
-    verifyOtp: function(code) {
-      if (!this._confirmationResult) throw new Error('لم يتم إرسال الرمز بعد');
-      return this._confirmationResult.confirm(code)
-        .then(function(result) { return result.user.uid; })
-        .catch(function(error) { throw new Error(error.message || 'رمز غير صحيح'); });
-    }
-  };
-  </script>
   <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
-
