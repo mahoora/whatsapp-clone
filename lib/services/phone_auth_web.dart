@@ -1,7 +1,7 @@
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 Future<String?> sendPhoneOtpJs(String phone) async {
-  final phoneAuth = html.window['_phoneAuth'] as dynamic;
+  final phoneAuth = web.window['_phoneAuth'] as dynamic;
   if (phoneAuth == null) return 'خطأ: Firebase غير محمّل';
   try {
     final dynamic promise = phoneAuth.sendOtp(phone);
@@ -13,7 +13,7 @@ Future<String?> sendPhoneOtpJs(String phone) async {
 }
 
 Future<String?> verifyOtpJs(String code) async {
-  final phoneAuth = html.window['_phoneAuth'] as dynamic;
+  final phoneAuth = web.window['_phoneAuth'] as dynamic;
   if (phoneAuth == null) return 'خطأ: Firebase غير محمّل';
   try {
     final dynamic promise = phoneAuth.verifyOtp(code);
