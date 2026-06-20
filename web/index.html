@@ -23,13 +23,38 @@
   </style>
 </head>
 <body>
-  <div id="recaptcha-container" style="position:fixed;bottom:0;right:0;z-index:999999"></div>
+  <div id="recaptcha-container"></div>
   <div id="root">
     <div id="loading">
       <div class="spinner"></div>
       <span>جاري التحميل...</span>
     </div>
   </div>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyCflaN3pDx-dlQB_5QzY1YpVjQ7uX-5zrU",
+      authDomain: "studio-1264128917-7f1a5.firebaseapp.com",
+      projectId: "studio-1264128917-7f1a5"
+    });
+    window._phoneAuth = {
+      _confirmationResult: null,
+      sendOtp: function(phone) {
+        var self = this;
+        window._recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {size: 'invisible'});
+        return firebase.auth().signInWithPhoneNumber(phone, window._recaptchaVerifier)
+          .then(function(r) { self._confirmationResult = r; return r.verificationId; })
+          .catch(function(e) { throw new Error(e.message); });
+      },
+      verifyOtp: function(code) {
+        if (!this._confirmationResult) throw new Error('لم يتم إرسال الرمز بعد');
+        return this._confirmationResult.confirm(code)
+          .then(function(r) { return r.user.uid; })
+          .catch(function(e) { throw new Error(e.message); });
+      }
+    };
+  </script>
   <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

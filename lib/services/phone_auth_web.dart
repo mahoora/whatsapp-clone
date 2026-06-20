@@ -1,18 +1,25 @@
-import '../services/firebase_service.dart';
+import 'dart:html' as html;
 
 Future<String?> sendPhoneOtpJs(String phone) async {
-  String? vid;
-  String? err;
-  await FirebaseService.auth.verifyPhoneNumber(
-    phoneNumber: phone,
-    verificationCompleted: (_) {},
-    verificationFailed: (e) { err = e.message ?? 'فشل'; },
-    codeSent: (v, _) { vid = v; },
-    codeAutoRetrievalTimeout: (_) {},
-    timeout: const Duration(seconds: 60),
-  );
-  await Future.delayed(const Duration(seconds: 2));
-  return err ?? vid;
+  final phoneAuth = html.window['_phoneAuth'] as dynamic;
+  if (phoneAuth == null) return 'خطأ: Firebase غير محمّل';
+  try {
+    final dynamic promise = phoneAuth.sendOtp(phone);
+    final dynamic result = await (promise as dynamic);
+    return result as String?;
+  } catch (e) {
+    return 'خطأ: $e';
+  }
 }
 
-Future<String?> verifyOtpJs(String code) async => null;
+Future<String?> verifyOtpJs(String code) async {
+  final phoneAuth = html.window['_phoneAuth'] as dynamic;
+  if (phoneAuth == null) return 'خطأ: Firebase غير محمّل';
+  try {
+    final dynamic promise = phoneAuth.verifyOtp(code);
+    await (promise as dynamic);
+    return null;
+  } catch (e) {
+    return 'خطأ: $e';
+  }
+}
