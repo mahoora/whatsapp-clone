@@ -20,6 +20,7 @@
     #loading { display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; color: #8696A0; }
     .spinner { width: 40px; height: 40px; border: 4px solid #313D45; border-top-color: #00A884; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #recaptcha-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999999; }
   </style>
 </head>
 <body>
@@ -30,30 +31,31 @@
       <span>جاري التحميل...</span>
     </div>
   </div>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
   <script>
-    firebase.initializeApp({
-      apiKey: "AIzaSyCflaN3pDx-dlQB_5QzY1YpVjQ7uX-5zrU",
-      authDomain: "studio-1264128917-7f1a5.firebaseapp.com",
-      projectId: "studio-1264128917-7f1a5"
-    });
-    window._phoneAuth = {
-      _confirmationResult: null,
-      sendOtp: function(phone) {
-        var self = this;
-        window._recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {size: 'invisible'});
-        return firebase.auth().signInWithPhoneNumber(phone, window._recaptchaVerifier)
-          .then(function(r) { self._confirmationResult = r; return r.verificationId; })
+  window._phoneAuth = {
+    _confirmationResult: null,
+    sendOtp: function(phone) {
+      var self = this;
+      try {
+        var verifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+          'size': 'normal',
+          'callback': function() { console.log('reCAPTCHA solved'); }
+        });
+        return firebase.auth().signInWithPhoneNumber(phone, verifier)
+          .then(function(result) {
+            self._confirmationResult = result;
+            return result.verificationId;
+          })
           .catch(function(e) { throw new Error(e.message); });
-      },
-      verifyOtp: function(code) {
-        if (!this._confirmationResult) throw new Error('لم يتم إرسال الرمز بعد');
-        return this._confirmationResult.confirm(code)
-          .then(function(r) { return r.user.uid; })
-          .catch(function(e) { throw new Error(e.message); });
-      }
-    };
+      } catch(e) { return Promise.reject(new Error(e.message)); }
+    },
+    verifyOtp: function(code) {
+      if (!this._confirmationResult) return Promise.reject(new Error('لم يتم إرسال الرمز'));
+      return this._confirmationResult.confirm(code)
+        .then(function(r) { return r.user.uid; })
+        .catch(function(e) { throw new Error(e.message); });
+    }
+  };
   </script>
   <script src="main.dart.js" type="application/javascript"></script>
 </body>

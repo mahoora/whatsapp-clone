@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../services/firebase_service.dart';
+import '../services/phone_auth.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -120,35 +121,34 @@ class AuthProvider extends ChangeNotifier {
     _verificationId = null;
     notifyListeners();
     try {
-      await FirebaseService.auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (cred) async {
-          await FirebaseService.auth.signInWithCredential(cred);
-        },
-        verificationFailed: (e) {
-          _error = e.message ?? 'فشل إرسال رمز التحقق';
-          _isLoading = false;
-          notifyListeners();
-        },
-        codeSent: (vid, _) {
+      if (kIsWeb) {
+        final vid = await sendPhoneOtpJs(phoneNumber);
+        if (vid != null && vid.startsWith('خطأ')) {
+          _error = vid;
+        } else {
           _verificationId = vid;
-          _isLoading = false;
-          notifyListeners();
-        },
-        codeAutoRetrievalTimeout: (vid) {
-          if (_verificationId == null) {
-            _error = 'انتهت مهلة التحقق';
-            _isLoading = false;
-            notifyListeners();
-          }
-        },
-        timeout: const Duration(seconds: 60),
-      );
+        }
+      } else {
+        await FirebaseService.auth.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          verificationCompleted: (cred) async {
+            await FirebaseService.auth.signInWithCredential(cred);
+          },
+          verificationFailed: (e) {
+            _error = e.message ?? 'فشل إرسال رمز التحقق';
+          },
+          codeSent: (vid, _) {
+            _verificationId = vid;
+          },
+          codeAutoRetrievalTimeout: (_) {},
+          timeout: const Duration(seconds: 60),
+        );
+      }
     } catch (e) {
       _error = 'حدث خطأ: $e';
-      _isLoading = false;
-      notifyListeners();
     }
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> verifyOtp(String code) async {
@@ -157,11 +157,16 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final cred = fb_auth.PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
-      await FirebaseService.auth.signInWithCredential(cred);
+      if (kIsWeb) {
+        final err = await verifyOtpJs(code);
+        if (err != null) _error = err;
+      } else {
+        final cred = fb_auth.PhoneAuthProvider.credential(
+          verificationId: _verificationId!,
+          smsCode: code,
+        );
+        await FirebaseService.auth.signInWithCredential(cred);
+      }
     } on fb_auth.FirebaseAuthException catch (e) {
       _error = e.message ?? 'رمز غير صحيح';
     } catch (e) {
