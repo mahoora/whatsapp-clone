@@ -1,30 +1,5 @@
-# Flutter
-.dart_tool/
-.packages
-build/
-*.iml
-.idea/
-.vscode/
-*.lock
-
-# Android
-android/.gradle/
-android/app/build/
-android/local.properties
-
-# iOS
-ios/Pods/
-ios/.symlinks/
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-
-# Web
-web/firebase-messaging-sw.js
-
-# OS
+node_modules/
+dist/
+.env
+*.log
 .DS_Store
-Thumbs.db
-
-# Firebase
-firebase.json
-.firebase/
