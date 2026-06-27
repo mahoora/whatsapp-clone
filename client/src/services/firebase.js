@@ -19,12 +19,13 @@ export const auth = getAuth(app);
 auth.useDeviceLanguage();
 
 export const setupRecaptcha = (containerId) => {
-  if (!window.recaptchaVerifier) {
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-      size: 'invisible',
-      callback: () => {},
-    });
+  if (window.recaptchaVerifier) {
+    window.recaptchaVerifier.clear();
   }
+  window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+    size: 'invisible',
+    callback: () => {},
+  });
   return window.recaptchaVerifier;
 };
 
@@ -40,5 +41,9 @@ export const sendOTP = async (phoneNumber, containerId = 'recaptcha-container') 
 
 export const verifyOTP = async (confirmationResult, otp) => {
   const result = await confirmationResult.confirm(otp);
+  if (window.recaptchaVerifier) {
+    window.recaptchaVerifier.clear();
+    window.recaptchaVerifier = null;
+  }
   return result.user;
 };
