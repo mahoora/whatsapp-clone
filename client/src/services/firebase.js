@@ -23,7 +23,7 @@ export const setupRecaptcha = (containerId) => {
     window.recaptchaVerifier.clear();
   }
   window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-    size: 'invisible',
+    size: 'normal',
     callback: () => {},
   });
   return window.recaptchaVerifier;
